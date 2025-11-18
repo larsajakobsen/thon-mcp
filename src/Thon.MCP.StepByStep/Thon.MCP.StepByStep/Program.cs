@@ -13,8 +13,4 @@ builder.Services
 
 builder.EnableMcpToolMetadata();
 
-builder
-    .ConfigureMcpTool("search_customers")
-    .WithProperty("query", "string", "Mandatory! Search query string to find customers by name, organization number, or other fields.", required: true);
-
 builder.Build().Run();
