@@ -5,31 +5,141 @@
 
 1.  Add Function App Project
     - Add new Function App project in Visual Studio
-        - Name: Thon.MCP.<your-project-nam>
+        - Name: Thon.MCP.<your-project-name>
         - Worker: .NET 8.0 Isolated
         - Trigger: Empty
 
 2. Add Azure Function
 
     * Add a new folder called Tools
-    * Add new file; CustomerSearchTool, in the Tools folder
+    * Add new file; HotelSearchTool, in the Tools folder
 
     ```csharp 
-        [Function("SearchCustomer")]
+        [Function("SearchHotel")]
         public async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "search-customer")] HttpRequestData req)
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "search_hotel")] HttpRequestData req)
         {
             string? query = req.Query["query"];
 
-            return new OkObjectResult($"You searched for customer: {query}");
+            return new OkObjectResult($"You searched for hotel: {query}");
         }
+
     ```
+
+    * Add fake/mocked hotel data
+
+    
+    ```csharp 
+
+        private static object[] GetAllHotels()
+        {
+            return new[]
+            {
+                new
+                {
+                    Navn = "Thon Hotel Oslo Airport",
+                    Adresse = "Hans Gaarders veg 15, 2060 Gardermoen",
+                    Telefonnummer = "+47 64 84 00 00",
+                    Organisasjonsnummer = "123456789",
+                    Antallrom = 151,
+                    Fasiliteter = new[] { "Restaurant", "Bar", "Treningssenter", "Gratis WiFi" },
+                    Status = "Aktiv"
+                },
+                new
+                {
+                    Navn = "Thon Hotel Bristol Oslo",
+                    Adresse = "Kristian IVs gate 7, 0164 Oslo",
+                    Telefonnummer = "+47 22 82 60 00",
+                    Organisasjonsnummer = "234567890",
+                    Antallrom = 252,
+                    Fasiliteter = new[] { "Restaurant", "Bar", "Konferanserom", "Gratis WiFi" },
+                    Status = "Aktiv"
+                },
+                new
+                {
+                    Navn = "Thon Hotel Rosenkrantz Oslo",
+                    Adresse = "Rosenkrantz' gate 1, 0159 Oslo",
+                    Telefonnummer = "+47 23 31 55 00",
+                    Organisasjonsnummer = "345678901",
+                    Antallrom = 151,
+                    Fasiliteter = new[] { "Restaurant", "Bar", "Konferanserom", "Gratis WiFi", "Parkering" },
+                    Status = "Aktiv"
+                },
+                new
+                {
+                    Navn = "Thon Hotel Vika Atrium Oslo",
+                    Adresse = "Munkedamsveien 45, 0250 Oslo",
+                    Telefonnummer = "+47 23 31 53 00",
+                    Organisasjonsnummer = "456789012",
+                    Antallrom = 93,
+                    Fasiliteter = new[] { "Restaurant", "Konferanserom", "Gratis WiFi" },
+                    Status = "Aktiv"
+                },
+                new
+                {
+                    Navn = "Thon Hotel Bergen Airport",
+                    Adresse = "Flyplassveien 555, 5869 Bergen",
+                    Telefonnummer = "+47 56 17 42 00",
+                    Organisasjonsnummer = "567890123",
+                    Antallrom = 210,
+                    Fasiliteter = new[] { "Restaurant", "Bar", "Treningssenter", "Gratis WiFi" },
+                    Status = "Aktiv"
+                }
+            };
+        }
+
+        ``` 
+        
+        * Add fake search method
+
+        ```csharp 
+
+        private static object[] SearchHotels(object[] hotels, string query)
+        {
+            var searchQuery = query?.ToLowerInvariant() ?? string.Empty;
+
+            return hotels.Where(hotel =>
+            {
+                var hotelType = hotel.GetType();
+                var navn = hotelType.GetProperty("Navn")?.GetValue(hotel)?.ToString() ?? string.Empty;
+                var adresse = hotelType.GetProperty("Adresse")?.GetValue(hotel)?.ToString() ?? string.Empty;
+                var fasiliteter = hotelType.GetProperty("Fasiliteter")?.GetValue(hotel) as string[] ?? Array.Empty<string>();
+
+                return navn.ToLowerInvariant().Contains(searchQuery) ||
+                    adresse.ToLowerInvariant().Contains(searchQuery) ||
+                    fasiliteter.Any(f => f.ToLowerInvariant().Contains(searchQuery));
+            }).ToArray();
+        }
+        
+        ``` 
+
+        
+        
+        * Use fake methods and return result 
+
+        ```csharp 
+        
+        [Function("SearchHotel")]
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "search_hotel")] HttpRequestData req)
+        {
+            string? query = req.Query["query"];
+
+            var allHotels = GetAllHotels();
+            var filteredHotels = SearchHotels(allHotels, query);
+
+            return new OkObjectResult(filteredHotels);
+        }
+
+        ``` 
+
     
 3. Test Function
 
     * Test that Function in webbrowser, Postman or similar :
 
             http://localhost:7083/api/search-customer?query=test
+
 
 4. Add Azure Functions MCP Nuget-package
 
@@ -38,33 +148,19 @@
 5. Use the McpToolTrigger
 
     * Remove the HttpTriger
-    * Add a McpToolTrigger
+    * Add the MCP Tool with McpToolTrigger and a property with McpToolProperty
 
         ```csharp 
-            [Function("SearchCustomer")]
+            [Function("SearchHotel")]
             public async Task<IActionResult> Run(
-                [McpToolTrigger("search_customers", "Search for customers in the Thon Customer database using various search criteria. The query parameter is mandatory")] ToolInvocationContext context,
-                [McpToolProperty("query", "string", "Mandatory! Search query string to find customers by name, organization number, or other fields.", true)] string query)
+                [McpToolTrigger("search_hotel", "Search for Thon Hotels using various search criteria such as location, name, or facilities. Returns a list of matching hotels with their details.")] ToolInvocationContext context,
+                [McpToolProperty("query", "string", "Mandatory! Search query string to find Thon Hotels by name, location, facilities, or other criteria.", true)] string query)
             {
-                return new StatusCodeResult(StatusCodes.Status200OK);
-            }      
-        ```
-5. Add a mock response
+                var allHotels = GetAllHotels();
+                var filteredHotels = SearchHotels(allHotels, query);
 
-    * Change "return new StatusCodeResult(StatusCodes.Status200OK);"" to
-
-        ```csharp 
-            return new OkObjectResult(new
-            {
-                Navn = "Drammen Autoco Eiendom AS",
-                Adresse = "Grønland 87, 3045 Drammen",
-                Telefonnummer = "32 89 22 10",
-                Organisasjonsnummer = "938311986",
-                Kredittgrense = "20 000 NOK",
-                Registreringsdato = "7. mai 1999",
-                SistEndret = "20. oktober 2020",
-                Status = "Inaktiv"
-            });   
+                return new OkObjectResult(filteredHotels);
+            }    
         ```
 
 6. Enable MCP Tool Metadata
@@ -75,10 +171,6 @@
 
             builder.EnableMcpToolMetadata();
 
-            builder
-                .ConfigureMcpTool("search_customers")
-                .WithProperty("query", "string", "Mandatory! Search query string to find customers by name, organization number, or other fields.", required: true);
-
         ``` 
 
 7. Run the MCP server
@@ -86,7 +178,7 @@
     * Using Visual Studio or dotnet run
     * Should see this:
 
-        ![Function App running](img/image.png)
+        ![alt text](image.png)
         
         
 8. Test the MCP server locally (option 1)
@@ -100,7 +192,7 @@
 
     * Test the tool:
 
-        ![MCP Inspector test](img/image-7.png)
+        ![alt text](image-1.png)
 
 8. Test the MCP server locally (option 2, more fun)
 
@@ -112,26 +204,26 @@
     * Add this content:    
 
         ```json
-            {
-                "servers": {
-                    "thon-customer-local": {
-                        "type": "sse",
-                        "url": "http://localhost:7083/runtime/webhooks/mcp/sse",
-                    }
+        {
+            "servers": {
+                "thon-mcp":{
+                    "type": "http",
+                    "url": "http://localhost:7083/runtime/webhooks/mcp",
                 }
-            }       
+            }
+        }     
         ``` 
     * Start the MCP-server
 
-        ![Start button](img/image-1.png)
+        ![alt text](image-2.png)
 
     * Make sure Github Copilot is in Agent mode
 
         ![Agent Mode](img/image-2.png)
 
-    * Ask about Drammen Autoco Eiendom AS
+    * Ask about hotels with "treningssenter" in Oslo
 
-        ![Ask the agent](img/image-3.png)
+        ![alt text](image-3.png)
 
 9. Create Azure Function App
 
@@ -142,7 +234,7 @@
             ![Consumption Model](img/image-5.png)
         - Use proper naming and use .NET 8 Isolated 
 
-            ![Function App Settings](img/image-4.png)
+            ![alt text](image-4.png)
     * Click "Get publish profile" and download the profile in the newly created Azure Function App
 
 10. Publish to Azure Function App
@@ -156,11 +248,11 @@
     * Change to remote url
     * Get the "API Key" (mcp_extention) from the Azure Function App:
 
-        ![key](img/image-8.png)
+        ![alt text](image-5.png)
 
     * Add the key as a Header named "x-functions-key" in MCP Inspector
 
-        ![alt text](img/image-9.png)
+        ![alt text](image-6.png)
 
     * Or in mcp.json in VSCode:
 
@@ -177,21 +269,21 @@
     * Select "Model Context Protocol"
     * Add correct configuration
 
-        ![alt text](img/image-11.png)
+        ![alt text](image-7.png)
 
         - The server url must be without "sse" in the end, eg. <your server>/runtime/webhooks/mcp
         - Add API Key (header) named "x-functions-key"
         - Click "Create"
     * Click "Connect" - "Create connection"
 
-        ![alt text](img/image-12.png)
+        ![alt text](image-8.png)
         - Add the key (App Keys -> mcp_extention) from the Azure Function App
     * Make sure the connection is ok
     * Click "Add to Agent"
 
 16. Test the Agent in the Chat window in Copilot Studio
 
-    ![alt text](img/image-13.png)
+   ![alt text](image-9.png)
 
 
 17. Add Agent to Teams or M365 Copilot
