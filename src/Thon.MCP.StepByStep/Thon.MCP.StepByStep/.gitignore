@@ -1,0 +1,66 @@
+# .gitignore for Thon.MCP.StepByStep
+# Visual Studio / IDEs
+.vs/
+*/.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sln.iml
+
+# Build results
+**/[Bb]in/
+**/[Oo]bj/
+bin/
+obj/
+Debug/
+Release/
+
+# Azure Functions
+# local.settings.json contains secrets and local connection strings
+local.settings.json
+
+# Function app build/publish outputs
+publish/
+*.zip
+*.Publish.xml
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# Logs, test results, coverage
+*.log
+TestResults/
+coverage/
+
+# Node
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Certificates, user secrets
+*.pfx
+*.publishsettings
+
+# Misc
+*.vsix
+*.dotCover
+_ReSharper*/
+*.DotSettings.user
+_NCrunch_*
+nCrunchTemp_*
+
+# Ignore Python build cache if any
+__pycache__/
+*.pyc
+
+# Keep the repo itself tracked
+!.gitignore

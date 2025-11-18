@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Thon.MCP.StepByStep": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7083",
+      "launchBrowser": false
+    }
+  }
+}
